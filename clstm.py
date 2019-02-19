@@ -13,6 +13,7 @@ from create_train_dev_split import get_train_data
 
 
 flags = tf.app.flags
+FLAGS = flags.FLAGS
 
 flags.DEFINE_string("train_data", None, "Text to classify")
 flags.DEFINE_string("save_path", None, "Directory to write the model and "
@@ -125,18 +126,13 @@ def main(argv=None):
 
         embedding_matrix, labels = get_train_data()
         embedding_matrix = tf.expand_dims(embedding_matrix, -1) # channels
-        print(embedding_matrix)
-        print(labels)
 
         train_dataset = tf.data.Dataset.from_tensor_slices( (embedding_matrix, tf.constant(labels)) )
         iterator = train_dataset.make_one_shot_iterator()
         element, label = iterator.get_next()
         label = label - 1 # to make in range of [0,num_classes)
-        print(element, label)
         next_element = tf.expand_dims(element, 0)
         next_label = tf.expand_dims(label, 0)
-        print(next_element)
-        print(next_label)
 
 
         global_step = tf.train.get_or_create_global_step()
@@ -144,8 +140,6 @@ def main(argv=None):
 
         model = C_LSTM(session, next_element)
         logits = model.clstm_model()
-        print(logits)
-        print(next_label)
         loss = model.loss(logits, next_label)
         train_op = model.train(loss, global_step)
 
