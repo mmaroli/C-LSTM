@@ -127,7 +127,7 @@ def main(argv=None):
         embedding_matrix, labels = get_train_data()
         embedding_matrix = tf.expand_dims(embedding_matrix, -1) # channels
 
-        train_dataset = tf.data.Dataset.from_tensor_slices( (embedding_matrix, tf.constant(labels)) )
+        train_dataset = tf.data.Dataset.from_tensor_slices( (embedding_matrix, tf.constant(labels)) ).repeat(FLAGS.epochs_to_train)
         iterator = train_dataset.make_one_shot_iterator()
         element, label = iterator.get_next()
         label = label - 1 # to make in range of [0,num_classes)
