@@ -18,13 +18,11 @@ flags.DEFINE_string("train_data", None, "Text to classify")
 flags.DEFINE_string("save_path", None, "Directory to write the model and "
                     "training summaries.")
 flags.DEFINE_integer(
-    "epochs_to_train", 15,
+    "epochs_to_train", 50,
     "Number of epochs to train. Each epoch processes the training data once "
     "completely.")
-flags.DEFINE_float("learning_rate", 0.2, "Initial learning rate.")
-flags.DEFINE_integer("batch_size", 16,
-                     "Number of training examples processed per step "
-                     "(size of a minibatch).")
+flags.DEFINE_float("learning_rate", 0.01, "Initial learning rate.")
+flags.DEFINE_integer("max_steps", 10000, "Max steps before training stops")
 
 
 class C_LSTM(object):
@@ -81,7 +79,7 @@ class C_LSTM(object):
 
         with tf.variable_scope('softmax') as scope:
             num_units = 64
-            num_classes = 10
+            num_classes = 5
             weights = tf.get_variable(name='weights', shape=[num_units, num_classes],
                                       initializer=tf.constant_initializer(0.0), dtype=tf.float32)
             biases = tf.get_variable(name='baises', shape=[num_classes], initializer=tf.constant_initializer(0.0), dtype=tf.float32)
@@ -105,7 +103,7 @@ class C_LSTM(object):
 
     def train(self, total_loss, global_step):
         """ Training process """
-        lr = 0.01
+        lr = FLAGS.learning_rate
         opt = tf.train.GradientDescentOptimizer(lr)
         grads = opt.compute_gradients(total_loss)
 
@@ -133,6 +131,7 @@ def main(argv=None):
         train_dataset = tf.data.Dataset.from_tensor_slices( (embedding_matrix, tf.constant(labels)) )
         iterator = train_dataset.make_one_shot_iterator()
         element, label = iterator.get_next()
+        label = label - 1 # to make in range of [0,num_classes)
         print(element, label)
         next_element = tf.expand_dims(element, 0)
         next_label = tf.expand_dims(label, 0)
@@ -145,6 +144,8 @@ def main(argv=None):
 
         model = C_LSTM(session, next_element)
         logits = model.clstm_model()
+        print(logits)
+        print(next_label)
         loss = model.loss(logits, next_label)
         train_op = model.train(loss, global_step)
 
@@ -172,7 +173,7 @@ def main(argv=None):
                 loss_value = run_values.results
                 print(f"{datetime.now()} step: {self._step}, loss: {loss_value}")
 
-        max_steps = 200
+        max_steps = FLAGS.max_steps
         with tf.train.MonitoredTrainingSession(
             checkpoint_dir='checkpoints',
             hooks=[tf.train.StopAtStepHook(last_step=max_steps),
