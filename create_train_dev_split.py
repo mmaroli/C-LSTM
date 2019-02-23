@@ -76,7 +76,7 @@ def train_dev_test_split(review_json):
         os.remove('review_test.json')
     with open(review_json) as f:
         for i, line in enumerate(f):
-            if (i < 100):
+            if (i < 10000):
                 with open('review_train.json', 'a') as out:
                     out.write(line)
             elif (i >= 10000 and i < 13000):
