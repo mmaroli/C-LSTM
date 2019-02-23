@@ -10,5 +10,5 @@ Files Present:
   + clstm.py
 
 Run clstm.py to train model.
-  1) docker-compose up --build -d
+  1) docker-compose up --build -d (Takes long because of amount of data)
   2) docker exec -it "clstm-model-container" python clstm.py

@@ -13,5 +13,5 @@ class Embedding:
         """
         if word in self.model.wv:
             return self.model.wv[word]
-        else: # initialize from random uniform distribution from [-0.25, 0.25)
+        else: # initialize to zeros if not in model
             return np.zeros(shape=300, dtype=np.float32)
