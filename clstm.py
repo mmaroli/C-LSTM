@@ -16,15 +16,15 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string("train_data", None, "Text to classify")
-flags.DEFINE_string("save_path", None, "Directory to write the model and "
-                    "training summaries.")
+flags.DEFINE_string("save_path", None, "Directory to write the model and training summaries.")
+flags.DEFINE_string("checkpoint_dir", 'checkpoints', "Directory to write the checkpoints.")
 flags.DEFINE_integer(
     "epochs_to_train", 50,
     "Number of epochs to train. Each epoch processes the training data once "
     "completely.")
 flags.DEFINE_float("learning_rate", 0.01, "Initial learning rate.")
 flags.DEFINE_integer("max_steps", 10000, "Max steps before training stops")
-
+flags.DEFINE_float("decay_rate", .95, "Steps to apply exponential decay")
 
 class C_LSTM(object):
     def __init__(self, session, embedding_matrix):
@@ -104,7 +104,14 @@ class C_LSTM(object):
 
     def train(self, total_loss, global_step):
         """ Training process """
-        lr = FLAGS.learning_rate
+        decay_steps = 1000
+        decay_rate = FLAGS.decay_rate
+        lr = tf.train.exponential_decay(FLAGS.learning_rate,
+                                        global_step,
+                                        decay_steps,
+                                        decay_rate,
+                                        staircase=True)
+
         opt = tf.train.GradientDescentOptimizer(lr)
         grads = opt.compute_gradients(total_loss)
 
@@ -124,10 +131,16 @@ class C_LSTM(object):
 def main(argv=None):
     with tf.Graph().as_default(), tf.Session() as session:
 
+        # get training data and create iterator
         embedding_matrix, labels = get_train_data()
         embedding_matrix = tf.expand_dims(embedding_matrix, -1) # channels
 
         train_dataset = tf.data.Dataset.from_tensor_slices( (embedding_matrix, tf.constant(labels)) ).repeat(FLAGS.epochs_to_train)
+
+        # delete embedding_matrix and labels from memory
+        del embedding_matrix
+        del labels
+
         iterator = train_dataset.make_one_shot_iterator()
         element, label = iterator.get_next()
         label = label - 1 # to make in range of [0,num_classes)
@@ -137,7 +150,7 @@ def main(argv=None):
 
         global_step = tf.train.get_or_create_global_step()
 
-
+        print("creating computational graph...")
         model = C_LSTM(session, next_element)
         logits = model.clstm_model()
         loss = model.loss(logits, next_label)
@@ -167,9 +180,10 @@ def main(argv=None):
                 loss_value = run_values.results
                 print(f"{datetime.now()} step: {self._step}, loss: {loss_value}")
 
+        print("training...")
         max_steps = FLAGS.max_steps
         with tf.train.MonitoredTrainingSession(
-            checkpoint_dir='checkpoints',
+            checkpoint_dir=FLAGS.checkpoint_dir,
             hooks=[tf.train.StopAtStepHook(last_step=max_steps),
                    tf.train.NanTensorHook(loss),
                    _LoggerHook()]
@@ -179,4 +193,10 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
+    if tf.gfile.Exists(FLAGS.checkpoint_dir):
+        tf.gfile.DeleteRecursively(FLAGS.checkpoint_dir)
+    tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
+    if tf.gfile.Exists('tensorboard'):
+        tf.gfile.DeleteRecursively('tensorboard')
+    tf.gfile.MakeDirs('tensorboard')
     tf.app.run()
