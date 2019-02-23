@@ -1,0 +1,14 @@
+version: '3'
+services:
+  clstm-model:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: clstm-model:tensorflow
+    container_name: clstm-model-container
+    volumes:
+      - ./checkpoints:/app/checkpoints
+    command: /bin/bash
+    tty: true
+    ports:
+      - "8050:8050"
